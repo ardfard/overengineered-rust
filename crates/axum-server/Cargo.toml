@@ -1,0 +1,28 @@
+[package]
+name = "overengineered"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+db = { path = "../db" }
+tonic = "0.14.2"
+tokio = {version = "1.47.0", features = ["macros", "rt-multi-thread"]}
+prost = "0.14.1"
+url = "2.5.7"
+md5 = "0.8.0"
+base62 = "2.2.1"
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres"] }
+async-trait = "0.1.89"
+hyper = "1.7.0"
+axum = {version = "0.8.4", features = ["http2"]}
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+bcrypt = "0.15"
+deadpool-postgres = { version = "0.12", features = ["serde"] }
+time = { version = "0.3", features = ["formatting", "serde"] }
+
+[build-dependencies]
+tonic-build = "0.14.2"
+
