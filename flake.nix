@@ -3,27 +3,41 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    naersk.url = "github:nix-community/naersk";
+    crane = {
+      url = "github:ipetkov/crane";
+    };
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, naersk, rust-overlay }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      crane,
+      rust-overlay,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         overlays = [ (import rust-overlay) ];
         pkgs = (import nixpkgs) { inherit system overlays; };
-        naersk' = pkgs.callPackage naersk { };
-      in
-      rec {
-
-        defaultPackage = naersk'.buildPackage {
+        craneLib = crane.mkLib pkgs;
+        bin = craneLib.buildPackage {
           src = ./.;
           nativeBuildInputs = [ pkgs.protobuf ];
         };
+      in
+      rec {
+
+        packages.default = bin;
 
         devShells.default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs;[
+          nativeBuildInputs = with pkgs; [
             cargo
             protobuf
             eza
