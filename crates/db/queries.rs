@@ -25,7 +25,7 @@ pub mod user {
     pub async fn get_by_id(pool: &PgPool, id: i32) -> sqlx::Result<Option<User>> {
         sqlx::query_as::<_, User>(
             r#"
-            SELECT id, email, username, created_at
+            SELECT id, email, COALESCE(username, '') as username, created_at::timestamptz as created_at
             FROM users
             WHERE id = $1
             "#,
@@ -45,7 +45,7 @@ pub mod user {
             r#"
             INSERT INTO users (email, username, password_hash)
             VALUES($1, $2, $3)
-            RETURNING id, email, username, created_at
+            RETURNING id, email, COALESCE(username, '') as username, created_at::timestamptz as created_at
             "#,
         )
         .bind(email)
@@ -55,13 +55,10 @@ pub mod user {
         .await
     }
 
-    pub async fn get_by_openid_sub(
-        pool: &PgPool,
-        openid_sub: &str,
-    ) -> sqlx::Result<Option<User>> {
+    pub async fn get_by_openid_sub(pool: &PgPool, openid_sub: &str) -> sqlx::Result<Option<User>> {
         sqlx::query_as::<_, User>(
             r#"
-            SELECT id, email, username, created_at
+            SELECT id, email, COALESCE(username, '') as username, created_at::timestamptz as created_at
             FROM users
             WHERE openid_sub = $1
             "#,
@@ -74,7 +71,7 @@ pub mod user {
     pub async fn get_by_email(pool: &PgPool, email: &str) -> sqlx::Result<Option<User>> {
         sqlx::query_as::<_, User>(
             r#"
-            SELECT id, email, username, created_at
+            SELECT id, email, COALESCE(username, '') as username, created_at::timestamptz as created_at
             FROM users
             WHERE email = $1
             "#,
@@ -90,7 +87,7 @@ pub mod user {
     ) -> sqlx::Result<Option<UserWithPassword>> {
         sqlx::query_as::<_, UserWithPassword>(
             r#"
-            SELECT id, email, username, password_hash, created_at
+            SELECT id, email, COALESCE(username, '') as username, password_hash, created_at::timestamptz as created_at
             FROM users
             WHERE email = $1
             "#,
@@ -107,4 +104,3 @@ pub mod user {
         Ok(row.count.unwrap_or(0))
     }
 }
-

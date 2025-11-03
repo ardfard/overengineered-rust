@@ -55,6 +55,9 @@
 
         devShells.default = pkgs.mkShell {
           inputsFrom = [ bin ];
+          nativeBuildInputs = with pkgs; [
+            sqlx-cli
+          ];
         };
       }
     );
