@@ -2,10 +2,10 @@
 use axum::{extract::State, http::StatusCode, response::Json as ResponseJson, Json};
 use serde_json::Value;
 use crate::user_management::models::{AuthResponse, RegisterRequest, UserResponse};
-use db::queries;
+use db::{queries, PgPool};
 
 pub async fn register(
-    State(pool): State<deadpool_postgres::Pool>,
+    State(pool): State<PgPool>,
     Json(payload): Json<RegisterRequest>,
 ) -> Result<ResponseJson<Value>, (StatusCode, ResponseJson<Value>)> {
     // Basic validation
@@ -44,24 +44,9 @@ pub async fn register(
         ));
     }
 
-    // Get database connection
-    let client = match pool.get().await {
-        Ok(client) => client,
-        Err(_) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ResponseJson(serde_json::json!({
-                    "success": false,
-                    "message": "Database connection failed",
-                    "data": null
-                })),
-            ));
-        }
-    };
-
     // Check if email already exists
-    match queries::user::get_by_email().bind(&client, &payload.email).one().await {
-        Ok(_) => {
+    match queries::user::get_by_email(&pool, &payload.email).await {
+        Ok(Some(_)) => {
             return Err((
                 StatusCode::CONFLICT,
                 ResponseJson(serde_json::json!({
@@ -71,8 +56,18 @@ pub async fn register(
                 })),
             ));
         }
-        Err(_) => {
+        Ok(None) => {
             // Email doesn't exist, continue with registration
+        }
+        Err(_) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ResponseJson(serde_json::json!({
+                    "success": false,
+                    "message": "Database error",
+                    "data": null
+                })),
+            ));
         }
     }
 
@@ -92,11 +87,7 @@ pub async fn register(
     };
 
     // Insert user into database
-    let user = match queries::user::insert_user()
-        .bind(&client, &payload.email, &payload.username, &password_hash)
-        .one()
-        .await
-    {
+    let user = match queries::user::insert_user(&pool, &payload.email, &payload.username, &password_hash).await {
         Ok(user) => user,
         Err(e) => {
             eprintln!("Database error: {:?}", e);

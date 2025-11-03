@@ -1,13 +1,10 @@
 use axum::{extract::State, http::StatusCode, response::Json as ResponseJson, Json};
 use serde_json::Value;
 use crate::user_management::models::{AuthResponse, LoginRequest, UserResponse};
-use db::queries;
-
-// For now, we'll use a simple hardcoded approach
-// In a real application, you'd use a proper database and JWT tokens
+use db::{queries, PgPool};
 
 pub async fn login(
-    State(pool): State<deadpool_postgres::Pool>,
+    State(pool): State<PgPool>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<ResponseJson<Value>, (StatusCode, ResponseJson<Value>)> {
     // Basic validation
@@ -22,34 +19,25 @@ pub async fn login(
         ));
     }
 
-    // Get database connection
-    let client = match pool.get().await {
-        Ok(client) => client,
-        Err(_) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ResponseJson(serde_json::json!({
-                    "success": false,
-                    "message": "Database connection failed",
-                    "data": null
-                })),
-            ));
-        }
-    };
-
     // Get user by email
-    let user = match queries::user::get_by_email_auth()
-        .bind(&client, &payload.email)
-        .one()
-        .await
-    {
-        Ok(user) => user,
-        Err(_) => {
+    let user = match queries::user::get_by_email_auth(&pool, &payload.email).await {
+        Ok(Some(user)) => user,
+        Ok(None) => {
             return Err((
                 StatusCode::UNAUTHORIZED,
                 ResponseJson(serde_json::json!({
                     "success": false,
                     "message": "Invalid credentials",
+                    "data": null
+                })),
+            ));
+        }
+        Err(_) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ResponseJson(serde_json::json!({
+                    "success": false,
+                    "message": "Database error",
                     "data": null
                 })),
             ));

@@ -1,13 +1,7 @@
-use deadpool_postgres::{Manager, Pool};
-use std::str::FromStr;
+pub mod queries;
 
-pub use queries::user;
+pub use sqlx::PgPool;
 
-pub fn create_pool(database_url: &str) -> Pool {
-    let config = tokio_postgres::Config::from_str(database_url).unwrap();
-    let manager = Manager::new(config, tokio_postgres::NoTls);
-    
-    Pool::builder(manager).build().unwrap()
+pub async fn create_pool(database_url: &str) -> sqlx::Result<PgPool> {
+    sqlx::PgPool::connect(database_url).await
 }
-
-include!(concat!(env!("OUT_DIR"), "/cornucopia.rs"));

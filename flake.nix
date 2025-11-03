@@ -26,37 +26,35 @@
       let
         overlays = [ (import rust-overlay) ];
         pkgs = (import nixpkgs) { inherit system overlays; };
-        craneLib = crane.mkLib pkgs;
-        bin = craneLib.buildPackage {
-          src = ./.;
-          nativeBuildInputs = [ pkgs.protobuf ];
+        rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+        src = craneLib.cleanCargoSource ./.;
+
+        nativeBuildInputs = with pkgs; [ 
+          protobuf 
+          rustToolchain 
+          pkg-config 
+          buf
+        ];
+
+        commonArgs = {
+          inherit src nativeBuildInputs;
         };
+
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        bin = craneLib.buildPackage (commonArgs // {
+          inherit cargoArtifacts;
+        });
       in
       rec {
 
-        packages.default = bin;
+        packages = {
+          inherit bin;
+          default = bin;
+        };
 
         devShells.default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [
-            cargo
-            protobuf
-            eza
-            fd
-            (rust-bin.stable.latest.default.override { extensions = [ "rust-src" ]; })
-            rust-analyzer
-            rustPackages.clippy
-            rust-script
-            rustfmt
-            cargo-watch
-            sqlx-cli
-            buf
-            dbmate
-          ];
-          DATABASE_URL = "postgres://testing:testing@127.0.0.1:5432/testing?sslmode=disable";
-          shellHook = ''
-            export PATH=$PATH:$HOME/.cargo/bin/
-          '';
-
+          inputsFrom = [ bin ];
         };
       }
     );

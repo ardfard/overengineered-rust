@@ -1,11 +1,11 @@
 mod api_keys;
 
 use axum::{Router, routing::post};
-use db::queries;
+use db::{queries, PgPool};
 
 mod user_management;
 
-fn make_router(pool: deadpool_postgres::Pool) -> Router {
+fn make_router(pool: PgPool) -> Router {
     Router::new()
         .route("/", post(|| async { "Hello, World!" }))
         .route("/register", post(user_management::register::register))
@@ -16,12 +16,12 @@ fn make_router(pool: deadpool_postgres::Pool) -> Router {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = db::create_pool(&db_url);
+    let pool = db::create_pool(&db_url).await?;
     
     // Test database connection
-    let client = pool.get().await.unwrap();
-    let u = queries::user::user().bind(&client, &1).one().await.unwrap();
-    println!("User: {:?}", u);
+    if let Some(u) = queries::user::get_by_id(&pool, 1).await? {
+        println!("User: {:?}", u);
+    }
 
     println!("Server starting...");
 
